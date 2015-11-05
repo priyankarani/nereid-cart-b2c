@@ -72,6 +72,35 @@ class Product:
             ),
         })
 
+        # Change displayed_on_eshop to function field
+        cls.displayed_on_eshop = fields.Function(
+            fields.Boolean('Displayed on E-Shop?'),
+            'get_displayed_on_eshop', searcher="search_displayed_on_eshop"
+        )
+
+    @classmethod
+    def search_displayed_on_eshop(cls, name, domain):
+        products = cls.search([
+            ('channel_listings.channel.source', '=', 'webshop')
+
+        ])
+
+        return [('id', 'in', map(int, products))]
+
+    def get_displayed_on_eshop(self, name):
+        return bool(self._get_webshop_listing())
+
+    def _get_webshop_listing(self):
+        """
+        Returns webshop listing for current product
+        """
+        ProductListing = Pool().get('product.product.channel_listing')
+
+        return ProductListing.search([
+            ('product', '=', self.id),
+            ('channel.source', '=', 'webshop')
+        ], limit=1)
+
     @classmethod
     def validate(cls, records):
         """

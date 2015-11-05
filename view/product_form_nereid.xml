@@ -13,4 +13,11 @@
             <field name="start_displaying_available_quantity"/>
         </page>
     </xpath>
+
+    <xpath expr="/form/label[@name=&quot;active&quot;]" position="before">
+        <newline/>
+        <label name="displayed_on_eshop"/>
+        <field name="displayed_on_eshop"/>
+    </xpath>
+    
 </data>

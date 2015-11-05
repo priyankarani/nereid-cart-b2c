@@ -86,7 +86,11 @@ class BaseTestCase(NereidTestCase):
             values['products'] = [
                 ('create', [{
                     'uri': uri,
-                    'displayed_on_eshop': True
+                    'channel_listings': [
+                        ('create', [{
+                            'channel': self.webshop_channel,
+                        }])
+                    ]
                 }])
             ]
         return ProductTemplate.create(vlist)
@@ -264,7 +268,7 @@ class BaseTestCase(NereidTestCase):
         Creates the static file for testing
         """
         folder, = self.StaticFolder.create([{
-            'folder_name': folder_name,
+            'name': folder_name,
             'description': 'Test Folder'
         }])
 
@@ -387,6 +391,20 @@ class BaseTestCase(NereidTestCase):
                 'payment_term': payment_term,
                 'company': self.company.id,
             }])
+
+            self.non_webshop_channel, = self.SaleChannel.create([{
+                'name': 'Default Channel',
+                'price_list': channel_price_list,
+                'invoice_method': 'order',
+                'shipment_method': 'order',
+                'source': 'manual',
+                'create_users': [('add', [USER])],
+                'warehouse': warehouse,
+                'payment_term': payment_term,
+                'company': self.company.id,
+            }])
+
+        self.webshop_channel = self.channel
 
         self.User.set_preferences({'current_channel': self.channel})
 
@@ -609,12 +627,21 @@ class TestProduct(BaseTestCase):
                 'media': [('create', [{
                     'static_file': file1.id,
                 }])],
+                'products': [
+                    ('create', [{
+                        'uri': 'uri',
+                        'channel_listings': [
+                            ('create', [{
+                                'channel': self.webshop_channel,
+                             }])
+                        ]
+
+                    }])
+                ]
+
             }])
 
             product, = product_template.products
-            product.displayed_on_eshop = True
-            product.uri = 'uri'
-            product.save()
 
             product_media = Media(**{
                 'static_file': file2.id,
@@ -744,6 +771,36 @@ class TestProduct(BaseTestCase):
                 self.assertTrue(rv.location.endswith('/cart'))
                 self.assertEqual(rv.status_code, 302)
                 self.assertEqual(SaleLine.search([], count=True), 1)
+
+    def test_0070_test_displayed_on_eshop(self):
+        """
+        Test displayed on eshop for product
+        """
+        Product = POOL.get('product.product')
+
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            self.setup_defaults()
+
+            # Product 1 with webshop listing
+            product1, = Product.create([{
+                'template': self.template1.id,
+                'uri': 'Prod1',
+                'channel_listings': [
+                    ('create', [{
+                        'channel': self.webshop_channel,
+                    }])
+                ]
+            }])
+
+            # Product 2 without listing
+            product2, = Product.create([{
+                'template': self.template1.id,
+                'uri': 'Prod2',
+            }])
+
+            self.assertTrue(product1.displayed_on_eshop)
+
+            self.assertFalse(product2.displayed_on_eshop)
 
 
 def suite():
