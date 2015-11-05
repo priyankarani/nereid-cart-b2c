@@ -10,6 +10,7 @@
 from datetime import date
 from dateutil.relativedelta import relativedelta
 
+from trytond.wizard import StateTransition
 from trytond.transaction import Transaction
 from trytond.pool import PoolMeta, Pool
 from trytond.model import fields
@@ -17,7 +18,7 @@ from trytond.pyson import Bool, Eval
 from nereid import request, cache, jsonify, abort, current_user, route
 from nereid.helpers import key_from_list
 
-__all__ = ['Product']
+__all__ = ['Product', 'AddProductListingStart', 'AddProductListing']
 __metaclass__ = PoolMeta
 
 
@@ -312,3 +313,26 @@ class Product:
             return abort(404)
 
         return jsonify(product.get_availability())
+
+
+class AddProductListingStart:
+    __name__ = 'product.listing.add.start'
+
+    @classmethod
+    def __setup__(cls):
+        super(AddProductListingStart, cls).__setup__()
+        cls.add_source('webshop')
+
+
+class AddProductListing:
+    __name__ = 'product.listing.add'
+
+    start_webshop = StateTransition()
+
+    def transition_start_webshop(self):
+        Listing = Pool().get('product.product.channel_listing')
+        Listing.create([{
+            'product': self.start.product,
+            'channel': self.start.channel,
+        }])
+        return 'end'

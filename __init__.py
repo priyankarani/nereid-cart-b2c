@@ -9,7 +9,7 @@
 '''
 from trytond.pool import Pool
 
-from product import Product
+from product import Product, AddProductListingStart, AddProductListing
 from sale import Sale, SaleLine
 from cart import Cart
 from website import Website
@@ -24,5 +24,10 @@ def register():
         SaleLine,
         Cart,
         Website,
+        AddProductListingStart,
         type_="model", module="nereid_cart_b2c"
+    )
+    Pool.register(
+        AddProductListing,
+        type_="wizard", module="nereid_cart_b2c"
     )

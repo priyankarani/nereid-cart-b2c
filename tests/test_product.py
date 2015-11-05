@@ -631,9 +631,7 @@ class TestProduct(BaseTestCase):
                     ('create', [{
                         'uri': 'uri',
                         'channel_listings': [
-                            ('create', [{
-                                'channel': self.webshop_channel,
-                             }])
+                            ('create', [{'channel': self.webshop_channel}])
                         ]
 
                     }])
