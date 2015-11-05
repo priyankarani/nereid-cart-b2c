@@ -89,6 +89,7 @@ class BaseTestCase(NereidTestCase):
                     'channel_listings': [
                         ('create', [{
                             'channel': self.webshop_channel,
+                            'uri': uri,
                         }])
                     ]
                 }])
@@ -392,18 +393,6 @@ class BaseTestCase(NereidTestCase):
                 'company': self.company.id,
             }])
 
-            self.non_webshop_channel, = self.SaleChannel.create([{
-                'name': 'Default Channel',
-                'price_list': channel_price_list,
-                'invoice_method': 'order',
-                'shipment_method': 'order',
-                'source': 'manual',
-                'create_users': [('add', [USER])],
-                'warehouse': warehouse,
-                'payment_term': payment_term,
-                'company': self.company.id,
-            }])
-
         self.webshop_channel = self.channel
 
         self.User.set_preferences({'current_channel': self.channel})
@@ -631,7 +620,10 @@ class TestProduct(BaseTestCase):
                     ('create', [{
                         'uri': 'uri',
                         'channel_listings': [
-                            ('create', [{'channel': self.webshop_channel}])
+                            ('create', [{
+                                'channel': self.webshop_channel,
+                                'uri': 'uri',
+                            }])
                         ]
 
                     }])
@@ -786,6 +778,7 @@ class TestProduct(BaseTestCase):
                 'channel_listings': [
                     ('create', [{
                         'channel': self.webshop_channel,
+                        'uri': 'Prod1',
                     }])
                 ]
             }])
@@ -799,6 +792,44 @@ class TestProduct(BaseTestCase):
             self.assertTrue(product1.displayed_on_eshop)
 
             self.assertFalse(product2.displayed_on_eshop)
+
+    def test_0075_test_add_listing_wizard(self):
+        """
+        Test wizard to add webshop listing to channel
+        """
+        Product = POOL.get('product.product')
+        AddProductListing = POOL.get('product.listing.add', type='wizard')
+        ListingStart = POOL.get('product.listing.add.start')
+
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            self.setup_defaults()
+
+            product, = Product.create([{
+                'template': self.template1.id,
+                'uri': 'Prod1',
+                'code': 'Test Code',
+            }])
+
+            self.assertFalse(product.channel_listings)
+
+            session_id, _, _ = AddProductListing.create()
+
+            add_listing = AddProductListing(session_id)
+
+            add_listing.start.product = product.id
+            add_listing.start.channel = self.webshop_channel
+            add_listing.start.uri = ListingStart(
+                product=product.id, channel=self.webshop_channel.id, uri=None
+            ).on_change_with_uri()
+
+            add_listing.transition_start_webshop()
+
+            self.assertTrue(product.channel_listings)
+            self.assertEqual(len(product.channel_listings), 1)
+
+            listing, = product.channel_listings
+
+            self.assertEqual(listing.uri, 'test-code')
 
 
 def suite():

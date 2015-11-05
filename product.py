@@ -10,6 +10,7 @@
 from datetime import date
 from dateutil.relativedelta import relativedelta
 
+from nereid.helpers import slugify
 from trytond.wizard import StateTransition
 from trytond.transaction import Transaction
 from trytond.pool import PoolMeta, Pool
@@ -18,7 +19,10 @@ from trytond.pyson import Bool, Eval
 from nereid import request, cache, jsonify, abort, current_user, route
 from nereid.helpers import key_from_list
 
-__all__ = ['Product', 'AddProductListingStart', 'AddProductListing']
+__all__ = [
+    'Product', 'AddProductListingStart', 'AddProductListing',
+    'ProductChannelListing',
+]
 __metaclass__ = PoolMeta
 
 
@@ -315,8 +319,49 @@ class Product:
         return jsonify(product.get_availability())
 
 
+class ProductChannelListing:
+    "Product Sale Channel Listing"
+    __name__ = 'product.product.channel_listing'
+
+    uri = fields.Char(
+        'URI', select=True, states={
+            'required': Eval('channel_source') == 'webshop',
+            'invisible': Eval('channel_source') != 'webshop',
+        }, depends=['channel_source']
+    )
+
+    @fields.depends('product', 'channel', 'uri')
+    def on_change_with_uri(self):
+        """
+        If the URI is empty, slugify template name into URI
+        """
+        if self.uri:
+            return self.uri
+
+        if self.channel and self.channel.source == 'webshop' and self.product:
+            return slugify(self.product.code)
+
+
 class AddProductListingStart:
     __name__ = 'product.listing.add.start'
+
+    uri = fields.Char(
+        'URI', select=True, states={
+            'required': Eval('channel_source') == 'webshop',
+            'invisible': Eval('channel_source') != 'webshop',
+        }, depends=['channel_source']
+    )
+
+    @fields.depends('product', 'channel', 'uri')
+    def on_change_with_uri(self):
+        """
+        If the URI is empty, slugify template name into URI
+        """
+        if self.uri:
+            return self.uri
+
+        if self.channel and self.channel.source == 'webshop' and self.product:
+            return slugify(self.product.code)
 
     @classmethod
     def __setup__(cls):
@@ -332,7 +377,8 @@ class AddProductListing:
     def transition_start_webshop(self):
         Listing = Pool().get('product.product.channel_listing')
         Listing.create([{
-            'product': self.start.product,
-            'channel': self.start.channel,
+            'product': self.start.product.id,
+            'channel': self.start.channel.id,
+            'uri': self.start.uri,
         }])
         return 'end'
